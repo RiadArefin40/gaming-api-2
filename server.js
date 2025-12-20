@@ -33,7 +33,7 @@ app.get('/status', async (req, res) => {
       'https://bs.sxvwlkohlv.com/api/v2/status',
    
     );
-    res.json(response);
+    response;
   } catch (err) {
     console.error('Error calling API:', err.response?.data || err.message);
     res.status(err.response?.status || 500).json({ error: err.response?.data || err.message });
