@@ -14,15 +14,25 @@ app.use(morgan('combined')); // logs every request
 // Proxy endpoint
 app.post('/auth/createtoken', async (req, res) => {
   try {
-    
-
     const response = await axios.post(
       'https://bs.sxvwlkohlv.com/api/v2/auth/createtoken',
       req.body,
       { headers: { 'Content-Type': 'application/json' } }
     );
-    console.log('Request body:', req.body);
-    console.log('API response:', response);
+    res.json(response);
+  } catch (err) {
+    console.error('Error calling API:', err.response?.data || err.message);
+    res.status(err.response?.status || 500).json({ error: err.response?.data || err.message });
+  }
+});
+
+
+app.get('/status', async (req, res) => {
+  try {
+    const response = await axios.get(
+      'https://bs.sxvwlkohlv.com/api/v2/status',
+   
+    );
     res.json(response);
   } catch (err) {
     console.error('Error calling API:', err.response?.data || err.message);
