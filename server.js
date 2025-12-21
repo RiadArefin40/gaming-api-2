@@ -79,6 +79,37 @@ app.get('/vendors', async (req, res) => {
 });
 
 
+
+// POST /games
+app.post('/games', async (req, res) => {
+  try {
+    const { vendorCode, language } = req.body;
+    const token = req.headers.authorization; // get token from frontend
+
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    // Call the casino API
+    const response = await axios.post(
+      'https://bs.sxvwlkohlv.com/api/v2/games/list',
+      { vendorCode, language },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token, // forward token
+        },
+      }
+    );
+
+    res.json(response.data);
+  } catch (err) {
+    console.error('Error calling games API:', err.response?.data || err.message);
+    res.status(err.response?.status || 500).json({ error: err.response?.data || err.message });
+  }
+});
+
+
 // Start server
 app.listen(PORT, () => {
   console.log(`API proxy server running on port ${PORT}`);
