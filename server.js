@@ -56,6 +56,29 @@ app.get('/status', async (req, res) => {
   }
 });
 
+
+app.get('/vendors', async (req, res) => {
+  try {
+    const token = req.headers.authorization; // get token from frontend
+
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    // Call the vendors API with the passed token
+    const response = await axios.get(
+      'https://bs.sxvwlkohlv.com/api/v2/vendors/list',
+      { headers: { Authorization: token } } // forward token
+    );
+
+    res.json(response.data);
+  } catch (err) {
+    console.error('Error calling API:', err.response?.data || err.message);
+    res.status(err.response?.status || 500).json({ error: err.response?.data || err.message });
+  }
+});
+
+
 // Start server
 app.listen(PORT, () => {
   console.log(`API proxy server running on port ${PORT}`);
