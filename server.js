@@ -11,15 +11,31 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('combined')); // logs every request
 
-// Proxy endpoint
+let cachedToken = null;
+let tokenExpiresAt = 0;
+
 app.post('/auth/createtoken', async (req, res) => {
   try {
+    // Return cached token if still valid
+    if (cachedToken && Date.now() < tokenExpiresAt) {
+      return res.json({ token: cachedToken });
+    }
+
+    // Request new token from casino API
     const response = await axios.post(
       'https://bs.sxvwlkohlv.com/api/v2/auth/createtoken',
-      req.body,
-      { headers: { 'Content-Type': 'application/json' } }
+      req.body, // { clientId, clientSecret }
+      { headers: { 'Content-Type': 'application/json', 'Accept': '*/*' } }
     );
-    res.json(response);
+
+    const { token, expiration } = response.data;
+
+    // Cache the token until expiration
+    cachedToken = token;
+    tokenExpiresAt = expiration * 1000; // expiration is in seconds
+
+    res.json({ token });
+
   } catch (err) {
     console.error('Error calling API:', err.response?.data || err.message);
     res.status(err.response?.status || 500).json({ error: err.response?.data || err.message });
