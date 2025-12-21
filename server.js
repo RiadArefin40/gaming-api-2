@@ -114,7 +114,7 @@ app.post('/games', async (req, res) => {
 
 
 // backend: express
-app.post('/api/game/launch', async (req, res) => {
+app.post('/game/launch', async (req, res) => {
   const { vendorCode, gameCode, userCode, language = 'en', lobbyUrl, theme = 1 } = req.body;
   const token = req.headers.authorization; // Bearer token from frontend
 
