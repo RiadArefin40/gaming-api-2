@@ -110,6 +110,43 @@ app.post('/games', async (req, res) => {
 });
 
 
+
+
+
+// backend: express
+app.post('/api/game/launch', async (req, res) => {
+  const { vendorCode, gameCode, userCode, language = 'en', lobbyUrl, theme = 1 } = req.body;
+  const token = req.headers.authorization; // Bearer token from frontend
+
+  if (!token) return res.status(401).json({ error: 'Missing token' });
+
+  try {
+    // 1️⃣ Check game availability
+    const detailRes = await axios.post(
+      'https://bs.sxvwlkohlv.com/api/v2/game/detail',
+      { vendorCode, gameCode },
+      { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } }
+    );
+
+    if (!detailRes.data?.success) {
+      return res.status(400).json({ error: 'Game not available', message: detailRes.data.message });
+    }
+
+    // 2️⃣ Launch game
+    const launchRes = await axios.post(
+      'https://bs.sxvwlkohlv.com/api/v2/game/launch-url',
+      { vendorCode, gameCode, userCode, language, lobbyUrl, theme },
+      { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } }
+    );
+
+    return res.json({ launchUrl: launchRes.data.message });
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+    return res.status(err.response?.status || 500).json({ error: err.response?.data || err.message });
+  }
+});
+
+
 // Start server
 app.listen(PORT, () => {
   console.log(`API proxy server running on port ${PORT}`);
