@@ -37,14 +37,10 @@ function encryptPayload(payload, secret) {
 
 // Launch game route
 app.get("/launch_game", (req, res) => {
-    // const { user_id, wallet_amount, game_uid } = req.query;
 
-    // if (!user_id || !wallet_amount || !game_uid) {
-    //     return res.status(400).send("Missing required parameters");
-    // }
 
     const timestamp = Date.now();
-
+    const userId = "88888888"
     const payloadData = {
         user_id: "88888888",
         wallet_amount: 1200,
@@ -56,7 +52,7 @@ app.get("/launch_game", (req, res) => {
     const encryptedPayload = encryptPayload(payloadData, API_SECRET);
 
     const gameUrl = `https://bulkapi.in/launch_game?user_id=${encodeURIComponent(
-        user_id
+        userId
     )}&wallet_amount=${encodeURIComponent(
         wallet_amount
     )}&game_uid=${encodeURIComponent(
