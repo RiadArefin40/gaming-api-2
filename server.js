@@ -41,6 +41,8 @@ app.get("/launch_game", (req, res) => {
 
     const timestamp = Date.now();
     const userId = "88888888"
+    const walletAmount= 1200;
+     const gameUid = "1189baca156e1bbbecc3b26651a63565";
     const payloadData = {
         user_id: "88888888",
         wallet_amount: 1200,
@@ -54,9 +56,9 @@ app.get("/launch_game", (req, res) => {
     const gameUrl = `https://bulkapi.in/launch_game?user_id=${encodeURIComponent(
         userId
     )}&wallet_amount=${encodeURIComponent(
-        wallet_amount
+        walletAmount
     )}&game_uid=${encodeURIComponent(
-        game_uid
+        gameUid
     )}&token=${encodeURIComponent(API_TOKEN)}&timestamp=${encodeURIComponent(
         timestamp
     )}&payload=${encodeURIComponent(encryptedPayload)}`;
