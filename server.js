@@ -65,9 +65,9 @@ app.get("/launch_game", (req, res) => {
 
 
     // Axios GET request
-    axios.get(launchUrl)
+    axios.get(gameUrl)
         .then(response => {
-            console.log("✅ Bulk API Response Status:", response.status);
+            console.log("✅ Bulk API Response Status:", response);
             console.log("Response Headers:", response.headers);
             console.log("Response Data:", response.data);
         })
