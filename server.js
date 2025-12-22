@@ -39,9 +39,9 @@ function encryptPayload(payload, secret) {
 app.get("/launch_game", (req, res) => {
     // const { user_id, wallet_amount, game_uid } = req.query;
 
-    if (!user_id || !wallet_amount || !game_uid) {
-        return res.status(400).send("Missing required parameters");
-    }
+    // if (!user_id || !wallet_amount || !game_uid) {
+    //     return res.status(400).send("Missing required parameters");
+    // }
 
     const timestamp = Date.now();
 
