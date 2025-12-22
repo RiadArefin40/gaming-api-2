@@ -37,7 +37,7 @@ function encryptPayload(payload, secret) {
 
 // Launch game route
 app.get("/launch_game", (req, res) => {
-    const { user_id, wallet_amount, game_uid } = req.query;
+    // const { user_id, wallet_amount, game_uid } = req.query;
 
     if (!user_id || !wallet_amount || !game_uid) {
         return res.status(400).send("Missing required parameters");
@@ -46,9 +46,9 @@ app.get("/launch_game", (req, res) => {
     const timestamp = Date.now();
 
     const payloadData = {
-        user_id: user_id.toString(),
-        wallet_amount: parseFloat(wallet_amount),
-        game_uid: game_uid.toString(),
+        user_id: "88888888",
+        wallet_amount: 1200,
+        game_uid: "1189baca156e1bbbecc3b26651a63565",
         token: API_TOKEN,
         timestamp: timestamp
     };
