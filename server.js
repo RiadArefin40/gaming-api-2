@@ -51,6 +51,22 @@ app.get("/launch_game", (req, res) => {
         timestamp
     )}&payload=${encodeURIComponent(encryptedPayload)}`;
 
+
+    // Axios GET request
+    axios.get(launchUrl)
+        .then(response => {
+            console.log("✅ Bulk API Response Status:", response.status);
+            console.log("Response Headers:", response.headers);
+            console.log("Response Data:", response.data);
+        })
+        .catch(error => {
+            if (error.response) {
+                console.error("❌ Bulk API Error:", error.response.status, error.response.data);
+            } else {
+                console.error("❌ Request Failed:", error.message);
+            }
+        });
+
     res.redirect(gameUrl);
 });
 
