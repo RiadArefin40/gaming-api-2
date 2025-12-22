@@ -1,81 +1,27 @@
-// ~/api-proxy/server.js
-const express = require('express');
-const axios = require('axios');
-const morgan = require('morgan');
-const cors = require('cors');
+import express from "express";
+import crypto from "crypto";
 
 const app = express();
-const PORT = 4000; // port for your API server
-
-app.use(cors());
 app.use(express.json());
-app.use(morgan('combined')); // logs every request
-
-let cachedToken = null;
-let tokenExpiresAt = 0;
-
-app.post('/auth/createtoken', async (req, res) => {
-  try {
-    // Return cached token if still valid
-    if (cachedToken && Date.now() < tokenExpiresAt) {
-      return res.json({ token: cachedToken });
-    }
-
-    // Request new token from casino API
-    const response = await axios.post(
-      'https://bs.sxvwlkohlv.com/api/v2/auth/createtoken',
-      req.body, // { clientId, clientSecret }
-      { headers: { 'Content-Type': 'application/json', 'Accept': '*/*' } }
-    );
-
-    const { token, expiration } = response.data;
-
-    // Cache the token until expiration
-    cachedToken = token;
-    tokenExpiresAt = expiration * 1000; // expiration is in seconds
-
-    res.json({ token });
-
-  } catch (err) {
-    console.error('Error calling API:', err.response?.data || err.message);
-    res.status(err.response?.status || 500).json({ error: err.response?.data || err.message });
-  }
-});
-
-
-app.get('/status', async (req, res) => {
-  try {
-    const response = await axios.get(
-      'https://bs.sxvwlkohlv.com/api/v2/status',
-   
-    );
-    res.json(response.data);
-  } catch (err) {
-    console.error('Error calling API:', err.response?.data || err.message);
-    res.status(err.response?.status || 500).json({ error: err.response?.data || err.message });
-  }
-});
-
-
 
 const API_TOKEN = "ceb57a3c-4685-4d32-9379-c2424f";
-const API_SECRET = "60fe91cdffa48eeca70403b3656446"; // Used for AES-256-ECB encryption
+const API_SECRET = "60fe91cdffa48eeca70403b3656446"; // Your secret
 
-// Helper function to encrypt payload using AES-256-ECB + Base64
+// Helper function: AES-256-ECB + Base64
 function encryptPayload(payload, secret) {
-  const cipher = crypto.createCipheriv(
-    "aes-256-ecb",
-    Buffer.from(secret, "utf8"),
-    null
-  );
+  // Ensure secret is exactly 32 bytes for AES-256
+  const key = Buffer.from(secret.padEnd(32, "0").slice(0, 32), "utf8");
+
+  const cipher = crypto.createCipheriv("aes-256-ecb", key, null);
   cipher.setAutoPadding(true);
+
   let encrypted = cipher.update(JSON.stringify(payload), "utf8", "base64");
   encrypted += cipher.final("base64");
+
   return encrypted;
 }
 
-
-// Game launch endpoint
+// Launch game route
 app.get("/launch_game", (req, res) => {
   const { user_id, wallet_amount, game_uid } = req.query;
 
@@ -85,7 +31,6 @@ app.get("/launch_game", (req, res) => {
 
   const timestamp = Date.now();
 
-  // Prepare payload (you can add extra fields if needed)
   const payloadData = {
     user_id,
     wallet_amount: parseFloat(wallet_amount),
@@ -94,25 +39,21 @@ app.get("/launch_game", (req, res) => {
     timestamp,
   };
 
-  // Encrypt the payload
   const encryptedPayload = encryptPayload(payloadData, API_SECRET);
 
-  // Build the redirect URL
   const gameUrl = `https://bulkapi.in/launch_game?user_id=${encodeURIComponent(
     user_id
   )}&wallet_amount=${encodeURIComponent(
     wallet_amount
-  )}&game_uid=${encodeURIComponent(game_uid)}&token=${encodeURIComponent(
-    API_TOKEN
-  )}&timestamp=${encodeURIComponent(timestamp)}&payload=${encodeURIComponent(
-    encryptedPayload
-  )}`;
+  )}&game_uid=${encodeURIComponent(
+    game_uid
+  )}&token=${encodeURIComponent(API_TOKEN)}&timestamp=${encodeURIComponent(
+    timestamp
+  )}&payload=${encodeURIComponent(encryptedPayload)}`;
 
-  // Redirect the user to the game
+  // Redirect browser to game
   res.redirect(gameUrl);
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`API proxy server running on port ${PORT}`);
-});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
