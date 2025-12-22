@@ -20,7 +20,9 @@ function encryptPayload(payload, secret) {
 
   return encrypted;
 }
-
+app.get('/api/test', (req, res) => {
+  res.send('API is working');
+});
 // Launch game route
 app.get("/launch_game", (req, res) => {
   const { user_id, wallet_amount, game_uid } = req.query;
