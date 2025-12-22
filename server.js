@@ -83,7 +83,9 @@ app.get("/launch_game", (req, res) => {
 
     res.redirect(gameUrl);
 });
-
+app.get('/api/test', (req, res) => {
+  res.send('API is working');
+});
 
 app.listen(4000, '127.0.0.1', () => {
   console.log('Express API running on http://127.0.0.1:4000');
