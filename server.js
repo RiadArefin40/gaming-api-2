@@ -1,7 +1,21 @@
-import express from "express";
+
+// ~/api-proxy/server.js
+const express = require('express');
+const axios = require('axios');
+const morgan = require('morgan');
+const cors = require('cors');
 import crypto from "crypto";
 
 const app = express();
+
+
+app.use(cors());
+app.use(express.json());
+app.use(morgan('combined')); 
+
+
+
+
 app.use(express.json());
 
 const API_TOKEN = "ceb57a3c-4685-4d32-9379-c2424f";
