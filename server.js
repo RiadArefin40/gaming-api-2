@@ -57,5 +57,6 @@ app.get("/launch_game", (req, res) => {
   res.redirect(gameUrl);
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(4000, '127.0.0.1', () => {
+  console.log('Express API running on http://127.0.0.1:4000');
+});
