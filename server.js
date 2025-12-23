@@ -18,75 +18,118 @@ app.use(express.json());
 
 app.use(express.json());
 const API_TOKEN = "ceb57a3c-4685-4d32-9379-c2424f";
-const API_SECRET = "60fe910dffa48eeca70403b3656446"; // Your secret
+const API_SECRET = "60fe910dffa48eeca70403b3656446"; 
 
-// Helper function: AES-256-ECB + Base64
-function encryptPayload(payload, secret) {
-    try {
-        // Ensure key is exactly 32 bytes (pad with zeros if needed, then slice to 32)
-        const key = Buffer.from(secret.padEnd(32, "0").slice(0, 32), "utf8");
-        
-        // Create cipher with AES-256-ECB (ECB mode doesn't use IV, so null is correct)
-        const cipher = crypto.createCipheriv("aes-256-ecb", key, null);
-        
-        // Enable automatic PKCS7 padding (this is default, but explicit for clarity)
-        cipher.setAutoPadding(true);
-        
-        // Encrypt the payload - use raw bytes, then encode to base64
-        let encrypted = cipher.update(JSON.stringify(payload), "utf8");
-        encrypted = Buffer.concat([encrypted, cipher.final()]);
-        
-        // Convert to base64 string
-        return encrypted.toString("base64");
-        
-    } catch (error) {
-        console.error("Encryption error:", error);
-        throw new Error("Failed to encrypt payload: " + error.message);
-    }
+
+//  Casino API Secret Key
+const AES_KEY = "60fe910dffa48eeca70403b3656446"; 
+
+// 🔧 Create proper 32-byte key for AES-256
+function createKey(keyString) {
+  const keyBuffer = Buffer.from(keyString, 'utf8');
+  if (keyBuffer.length >= 32) {
+    return keyBuffer.slice(0, 32);
+  } else {
+    // Pad with zeros if key is too short
+    const paddedKey = Buffer.alloc(32);
+    keyBuffer.copy(paddedKey);
+    return paddedKey;
+  }
 }
 
-// Launch game route
-app.get("/launch_game", (req, res) => {
-    try {
-        const timestamp = Date.now();
-        const userId = "00000000";
-        const walletAmount = 1200;
-        const gameUid = "1189baca156e1bbbecc3b26651a63565";
-        
-        // Create payload data object
-        const payloadData = {
-            user_id: userId,
-            wallet_amount: walletAmount,
-            game_uid: gameUid,
-            token: API_TOKEN,
-            timestamp: timestamp
-        };
-        
-        // Encrypt the payload
-        let encryptedPayload;
-        try {
-            encryptedPayload = encryptPayload(payloadData, API_SECRET);
-        } catch (encryptError) {
-            console.error("Encryption failed:", encryptError);
-            return res.status(500).json({ 
-                error: "Encryption failed", 
-                message: encryptError.message 
-            });
+export function encrypt(payload) {
+  try {
+    const text = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    console.log(" Encrypting text:", text);
+    
+    const key = createKey(AES_KEY);
+    console.log(" Key length:", key.length);
+    
+    // Create cipher with AES-256-ECB (like PHP)
+    const cipher = crypto.createCipheriv('aes-256-ecb', key, null);
+    
+    let encrypted = cipher.update(text, 'utf8', 'base64');
+    encrypted += cipher.final('base64');
+    
+    console.log(" Encrypted result:", encrypted);
+    return encrypted;
+  } catch (error) {
+    console.error(" Encryption error:", error);
+    throw error;
+  }
+}
+
+
+
+
+
+app.post("/launch_game", (req, res) => {
+
+     const { userName, game_uid, credit_amount } = req.body;
+     const SERVER_URL = "https://bulkapi.in"; 
+        // Validate required fields
+        if (!userName || !game_uid || !credit_amount) {
+          return res.status(400).json({ 
+            success: false, 
+            message: "Missing required fields: userName, game_uid, credit_amount" 
+          });
         }
-        
-        // Build the game URL with all parameters
-        const gameUrl = `https://bulkapi.in/launch_game?user_id=${encodeURIComponent(userId)}&wallet_amount=${encodeURIComponent(walletAmount)}&game_uid=${encodeURIComponent(gameUid)}&token=${encodeURIComponent(API_TOKEN)}&timestamp=${encodeURIComponent(timestamp)}&payload=${encodeURIComponent(encryptedPayload)}`;
-        
-        // Redirect to game URL
-        res.redirect(gameUrl);
-        
-    } catch (error) {
-        console.error("Launch game error:", error);
-        res.status(500).json({ 
-            error: "Internal server error", 
-            message: error.message 
-        });
-    }
+    
+        //  Find the subadmin/user before launching game
+        // const subAdmin = await SubAdmin.findOne({ userName });
+        // if (!subAdmin) {
+        //   return res.status(404).json({ success: false, message: "User not found" });
+        // }
+    
+        //  Check if user has sufficient balance
+        // if (subAdmin.avbalance < credit_amount) {
+        //   return res.status(400).json({ 
+        //     success: false, 
+        //     message: "Insufficient balance" 
+        //   });
+        // }
+        // const roundedBalance = Math.round(subAdmin.avbalance * 100) / 100;
+        // const roundedCreditAmount = Math.round(parseFloat(credit_amount) * 100) / 100;
+    
+        // if (roundedBalance < roundedCreditAmount) {
+        //   console.log("subadmin balance", subAdmin.avbalance);
+        //   console.log("credit amount", credit_amount);
+        //   console.log("rounded balance", roundedBalance);
+        //   console.log("rounded credit amount", roundedCreditAmount);
+        //   return res.status(400).json({ 
+        //     success: false, 
+        //     message: "Insufficient balance" 
+        //   });
+        // }
+    
+        const timestamp = Math.round(Date.now());
+    
+        // 🔧 Create payload exactly like PHP code
+        const requestData = {
+          user_id: userName, // Using userName as user_id
+          wallet_amount: parseFloat(credit_amount),
+          game_uid: game_uid,
+          token: API_TOKEN,
+          timestamp: timestamp
+        };
+    
+        console.log(" Request data:", requestData);
+    
+        // 🔧 Encrypt the payload using the secret key
+        const message = JSON.stringify(requestData);
+        const encryptedPayload = encrypt(message); // This uses your existing encrypt function
+    
+        // 🔧 Build URL with parameters (like PHP code)
+        const gameUrl = `${SERVER_URL}/launch_game?` + 
+          `user_id=${encodeURIComponent(userName)}` +
+          `&wallet_amount=${encodeURIComponent(credit_amount)}` +
+          `&game_uid=${encodeURIComponent(game_uid)}` +
+          `&token=${encodeURIComponent(API_TOKEN)}` +
+          `&timestamp=${encodeURIComponent(timestamp)}` +
+          `&payload=${encodeURIComponent(encryptedPayload)}`;
+    
+        console.log(" Generated game URL:", gameUrl);
+   
 });
 app.get('/api/test', (req, res) => {
   res.send('API is working');
