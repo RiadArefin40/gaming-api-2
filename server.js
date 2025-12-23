@@ -9,8 +9,8 @@ app.use(cors());
 app.use(express.json());
 
 // Use the SAME credentials as PHP code in vish/index.php
-const API_TOKEN = "58bf0200-ebd9-48ea-8d30-815e9b";  // Match PHP api_token
-const AES_KEY = "ddef668618ad596a200c7da75e06de";    // Match PHP api_secret
+const API_TOKEN = "ceb57a3c-4685-4d32-9379-c2424f";  // Match PHP api_token
+const AES_KEY = "60fe91cdffa48eeca70403b3656446";    // Match PHP api_secret
 
 function createKey(keyString) {
   // PHP's openssl_encrypt treats the key as a raw UTF-8 string
