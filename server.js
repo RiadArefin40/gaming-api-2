@@ -13,15 +13,21 @@ const API_TOKEN = "ceb57a3c-4685-4d32-9379-c2424f";  // Match PHP api_token
 const AES_KEY = "60fe91cdffa48eeca70403b3656446";    // Match PHP api_secret
 
 function createKey(keyString) {
-  // PHP's openssl_encrypt treats the key as a raw UTF-8 string
-  // The key must be exactly 32 bytes for AES-256-ECB
+  // PHP's openssl_encrypt automatically pads keys to the required length
+  // For AES-256-ECB, we need exactly 32 bytes
+  // Convert key string to buffer (UTF-8 encoding)
   const keyBuffer = Buffer.from(keyString, 'utf8');
   
-  if (keyBuffer.length !== 32) {
-    throw new Error(`Key must be exactly 32 bytes (32 characters), got ${keyBuffer.length}`);
-  }
+  // Create a 32-byte buffer (initialized with zeros)
+  const paddedKey = Buffer.alloc(32, 0);
   
-  return keyBuffer;
+  // Copy the key bytes into the padded buffer
+  // If key is longer than 32 bytes, only copy first 32 bytes
+  // If key is shorter, it will be padded with zeros (null bytes)
+  const bytesToCopy = Math.min(keyBuffer.length, 32);
+  keyBuffer.copy(paddedKey, 0, 0, bytesToCopy);
+  
+  return paddedKey;
 }
 
 export function encrypt(payload) {
@@ -34,7 +40,6 @@ export function encrypt(payload) {
     const key = createKey(AES_KEY);
     
     // AES-256-ECB - matches PHP: openssl_encrypt($plaintext, 'aes-256-ecb', $aesKey, OPENSSL_RAW_DATA, '')
-    // OPENSSL_RAW_DATA returns raw binary, then base64_encode is applied
     const cipher = crypto.createCipheriv('aes-256-ecb', key, null);
     
     let encrypted = cipher.update(text, 'utf8', 'base64');
@@ -87,6 +92,8 @@ app.post("/launch_game", async (req, res) => {
   // Match PHP: json_encode($requestData, JSON_UNESCAPED_SLASHES)
   const message = JSON.stringify(requestData);
   console.log("📝 Plain JSON message:", message);
+  console.log("🔑 Key length:", AES_KEY.length, "characters");
+  console.log("🔑 Key bytes:", Buffer.from(AES_KEY, 'utf8').length, "bytes");
   
   const encryptedPayload = encrypt(message);
   console.log("🔐 Encrypted payload:", encryptedPayload);
@@ -103,12 +110,13 @@ app.post("/launch_game", async (req, res) => {
       console.log("✅ Encryption/Decryption cycle verified!");
     } else {
       console.log("⚠️  WARNING: Decrypted text doesn't match original!");
-      console.log("Original length:", message.length);
-      console.log("Decrypted length:", decrypted.length);
+      console.log("Original:", message);
+      console.log("Decrypted:", decrypted);
     }
   } catch (e) {
     console.error("❌ Self-decryption test FAILED:", e.message);
   }
+
   // Build URL with parameters (exactly like PHP)
   const gameUrl = `${SERVER_URL}/launch_game?` + 
     `user_id=${encodeURIComponent(userName)}` +
@@ -144,6 +152,7 @@ app.post("/launch_game", async (req, res) => {
 app.get('/api/test', (req, res) => {
   res.send('API is working');
 });
+
 app.listen(4000, '127.0.0.1', () => {
   console.log('Express API running on http://127.0.0.1:4000');
 });
