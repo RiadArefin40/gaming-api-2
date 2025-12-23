@@ -8,43 +8,35 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Use the key that matches your API_TOKEN
-// If API_TOKEN is "ceb57a3c-4685-4d32-9379-c2424f", use the secret key for that account
-const API_TOKEN = "ceb57a3c-4685-4d32-9379-c2424f";
-// Try the original key first - it might be correct for this API token
-const AES_KEY = "60fe910dffa48eeca70403b3656446"; 
+// Use the SAME credentials as PHP code in vish/index.php
+const API_TOKEN = "58bf0200-ebd9-48ea-8d30-815e9b";  // Match PHP api_token
+const AES_KEY = "ddef668618ad596a200c7da75e06de";    // Match PHP api_secret
 
 function createKey(keyString) {
   // PHP's openssl_encrypt treats the key as a raw UTF-8 string
-  // Convert to buffer and ensure it's exactly 32 bytes for AES-256
+  // The key must be exactly 32 bytes for AES-256-ECB
   const keyBuffer = Buffer.from(keyString, 'utf8');
   
-  if (keyBuffer.length === 32) {
-    return keyBuffer;
-  } else if (keyBuffer.length > 32) {
-    return keyBuffer.slice(0, 32);
-  } else {
-    // Pad with null bytes if shorter (PHP does this)
-    const paddedKey = Buffer.alloc(32, 0);
-    keyBuffer.copy(paddedKey, 0);
-    return paddedKey;
+  if (keyBuffer.length !== 32) {
+    throw new Error(`Key must be exactly 32 bytes (32 characters), got ${keyBuffer.length}`);
   }
+  
+  return keyBuffer;
 }
 
 export function encrypt(payload) {
   try {
-    // Match PHP's JSON_UNESCAPED_SLASHES - remove escaped forward slashes
+    // Match PHP's JSON_UNESCAPED_SLASHES behavior
     let text = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    // Remove escaped forward slashes to match PHP
     text = text.replace(/\\\//g, '/');
     
     const key = createKey(AES_KEY);
     
-    // AES-256-ECB - no IV needed (pass null)
-    // PHP: openssl_encrypt($plaintext, 'aes-256-ecb', $aesKey, OPENSSL_RAW_DATA, '')
-    // OPENSSL_RAW_DATA means it returns raw binary, then base64_encode is applied
+    // AES-256-ECB - matches PHP: openssl_encrypt($plaintext, 'aes-256-ecb', $aesKey, OPENSSL_RAW_DATA, '')
+    // OPENSSL_RAW_DATA returns raw binary, then base64_encode is applied
     const cipher = crypto.createCipheriv('aes-256-ecb', key, null);
     
-    // Update with utf8 input, base64 output (matches PHP's base64_encode of raw data)
     let encrypted = cipher.update(text, 'utf8', 'base64');
     encrypted += cipher.final('base64');
     
@@ -55,7 +47,7 @@ export function encrypt(payload) {
   }
 }
 
-// Helper function to decrypt and verify (for testing)
+// Test decryption function
 export function decrypt(encryptedBase64) {
   try {
     const key = createKey(AES_KEY);
@@ -68,10 +60,10 @@ export function decrypt(encryptedBase64) {
     throw error;
   }
 }
-const SERVER_URL = "https://bulkapi.in"; 
+
 app.post("/launch_game", async (req, res) => {
   const { userName, game_uid, credit_amount } = req.body;
-  
+  const SERVER_URL = "https://bulkapi.in"; 
   
   if (!userName || !game_uid || !credit_amount) {
     return res.status(400).json({ 
@@ -80,7 +72,7 @@ app.post("/launch_game", async (req, res) => {
     });
   }
 
-  // Match PHP: round(microtime(true) * 1000)
+  // Match PHP: round(microtime(true) * 1000) - milliseconds
   const timestamp = Math.round(Date.now());
 
   // Create payload exactly like PHP code
@@ -94,33 +86,31 @@ app.post("/launch_game", async (req, res) => {
 
   // Match PHP: json_encode($requestData, JSON_UNESCAPED_SLASHES)
   const message = JSON.stringify(requestData);
-  console.log("Plain JSON:", message);
+  console.log("📝 Plain JSON message:", message);
   
   const encryptedPayload = encrypt(message);
-  console.log("Encrypted payload:", encryptedPayload);
+  console.log("🔐 Encrypted payload:", encryptedPayload);
 
-  // Verify encryption by decrypting (for debugging)
+  // Self-test: verify we can decrypt our own encryption
   try {
     const decrypted = decrypt(encryptedPayload);
-    console.log("Decrypted (verification):", decrypted);
+    console.log("✅ Self-decryption test - Decrypted:", decrypted);
     const parsed = JSON.parse(decrypted);
-    console.log("Parsed JSON (verification):", parsed);
+    console.log("✅ Self-decryption test - Parsed:", JSON.stringify(parsed, null, 2));
+    
+    // Verify it matches original
+    if (decrypted === message) {
+      console.log("✅ Encryption/Decryption cycle verified!");
+    } else {
+      console.log("⚠️  WARNING: Decrypted text doesn't match original!");
+      console.log("Original length:", message.length);
+      console.log("Decrypted length:", decrypted.length);
+    }
   } catch (e) {
-    console.error("Self-decryption test failed:", e.message);
+    console.error("❌ Self-decryption test FAILED:", e.message);
   }
-
-  // Build URL with parameters (like PHP code)
-  // const gameUrl = ${SERVER_URL}/launch_game? + 
-  //   user_id=${encodeURIComponent(userName)} +
-  //   &wallet_amount=${encodeURIComponent(credit_amount)} +
-  //   &game_uid=${encodeURIComponent(game_uid)} +
-  //   &token=${encodeURIComponent(API_TOKEN)} +
-  //   &timestamp=${encodeURIComponent(timestamp)} +
-  //   &payload=${encodeURIComponent(encryptedPayload)};
-
-
-
-    const gameUrl = `${SERVER_URL}/launch_game?` + 
+  // Build URL with parameters (exactly like PHP)
+  const gameUrl = `${SERVER_URL}/launch_game?` + 
     `user_id=${encodeURIComponent(userName)}` +
     `&wallet_amount=${encodeURIComponent(credit_amount)}` +
     `&game_uid=${encodeURIComponent(game_uid)}` +
@@ -128,7 +118,7 @@ app.post("/launch_game", async (req, res) => {
     `&timestamp=${encodeURIComponent(timestamp)}` +
     `&payload=${encodeURIComponent(encryptedPayload)}`;
 
-  console.log("Generated game URL:", gameUrl);
+  console.log("🌐 Generated game URL:", gameUrl);
 
   try {
     // Call the casino API
@@ -141,9 +131,8 @@ app.post("/launch_game", async (req, res) => {
       gameUrl: gameUrl
     });
   } catch (error) {
-    console.error("API Error:", error.response?.data || error.message);
-    console.error("Response status:", error.response?.status);
-    console.error("Response headers:", error.response?.headers);
+    console.error("❌ API Error:", error.response?.data || error.message);
+    console.error("Status:", error.response?.status);
     res.status(error.response?.status || 500).json({
       success: false,
       message: "Failed to launch game",
@@ -155,7 +144,6 @@ app.post("/launch_game", async (req, res) => {
 app.get('/api/test', (req, res) => {
   res.send('API is working');
 });
-
 app.listen(4000, '127.0.0.1', () => {
   console.log('Express API running on http://127.0.0.1:4000');
 });
