@@ -2,13 +2,9 @@
 // ~/api-proxy/server.js
 import express  from 'express';
 import axios from 'axios';
-
 import  cors from 'cors';
 import crypto from "crypto";
-
 const app = express();
-
-
 app.use(cors());
 app.use(express.json());
  
@@ -18,19 +14,14 @@ app.use(express.json());
 
 app.use(express.json());
 const API_TOKEN = "ceb57a3c-4685-4d32-9379-c2424f";
-const API_SECRET = "60fe910dffa48eeca70403b3656446"; 
-
-
-//  Casino API Secret Key
 const AES_KEY = "60fe910dffa48eeca70403b3656446"; 
 
-// 🔧 Create proper 32-byte key for AES-256
+
 function createKey(keyString) {
   const keyBuffer = Buffer.from(keyString, 'utf8');
   if (keyBuffer.length >= 32) {
     return keyBuffer.slice(0, 32);
   } else {
-    // Pad with zeros if key is too short
     const paddedKey = Buffer.alloc(32);
     keyBuffer.copy(paddedKey);
     return paddedKey;
@@ -40,68 +31,28 @@ function createKey(keyString) {
 export function encrypt(payload) {
   try {
     const text = typeof payload === 'string' ? payload : JSON.stringify(payload);
-    console.log(" Encrypting text:", text);
-    
     const key = createKey(AES_KEY);
-    console.log(" Key length:", key.length);
-    
-    // Create cipher with AES-256-ECB (like PHP)
     const cipher = crypto.createCipheriv('aes-256-ecb', key, null);
-    
     let encrypted = cipher.update(text, 'utf8', 'base64');
     encrypted += cipher.final('base64');
-    
-    console.log(" Encrypted result:", encrypted);
     return encrypted;
   } catch (error) {
-    console.error(" Encryption error:", error);
     throw error;
   }
 }
-
-
-
 
 
 app.post("/launch_game", async (req, res) => {
 
      const { userName, game_uid, credit_amount } = req.body;
      const SERVER_URL = "https://bulkapi.in"; 
-        // Validate required fields
         if (!userName || !game_uid || !credit_amount) {
           return res.status(400).json({ 
             success: false, 
             message: "Missing required fields: userName, game_uid, credit_amount" 
           });
         }
-    
-        //  Find the subadmin/user before launching game
-        // const subAdmin = await SubAdmin.findOne({ userName });
-        // if (!subAdmin) {
-        //   return res.status(404).json({ success: false, message: "User not found" });
-        // }
-    
-        //  Check if user has sufficient balance
-        // if (subAdmin.avbalance < credit_amount) {
-        //   return res.status(400).json({ 
-        //     success: false, 
-        //     message: "Insufficient balance" 
-        //   });
-        // }
-        // const roundedBalance = Math.round(subAdmin.avbalance * 100) / 100;
-        // const roundedCreditAmount = Math.round(parseFloat(credit_amount) * 100) / 100;
-    
-        // if (roundedBalance < roundedCreditAmount) {
-        //   console.log("subadmin balance", subAdmin.avbalance);
-        //   console.log("credit amount", credit_amount);
-        //   console.log("rounded balance", roundedBalance);
-        //   console.log("rounded credit amount", roundedCreditAmount);
-        //   return res.status(400).json({ 
-        //     success: false, 
-        //     message: "Insufficient balance" 
-        //   });
-        // }
-    
+
         const timestamp = Math.round(Date.now());
     
         // 🔧 Create payload exactly like PHP code
@@ -132,13 +83,14 @@ app.post("/launch_game", async (req, res) => {
 
 
             // 🔧 Call the casino API
-    const response = await axios.get(gameUrl);
+            const response = await axios.get(gameUrl);
 
-    // Return the casino API response to frontend
-    res.json({
-      success: true,
-      data: response.data
-    });
+            // Return the casino API response to frontend
+            res.json({
+            success: true,
+            data: response.data,
+            gameUrl: gameUrl
+            });
    
 });
 app.get('/api/test', (req, res) => {
