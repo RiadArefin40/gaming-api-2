@@ -8,32 +8,25 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Use the same keys as PHP code in vish/index.php
 const API_TOKEN = "ceb57a3c-4685-4d32-9379-c2424f";
-const AES_KEY = "60fe910dffa48eeca70403b3656446"; 
+const AES_KEY = "ddef668618ad596a200c7da75e06de"; // Match PHP api_secret
 
 function createKey(keyString) {
-  // Convert hex string to buffer (32 hex chars = 16 bytes)
-  // For AES-256, we need 32 bytes, so we'll pad or use the hex directly
-  if (keyString.length === 32) {
-    // If it's a 32-character hex string, convert it to 16 bytes
-    // Then pad to 32 bytes for AES-256
-    const keyBuffer = Buffer.from(keyString, 'hex');
-    // AES-256 requires 32 bytes, so pad the 16-byte key
+  // PHP's openssl_encrypt treats the key as a raw UTF-8 string
+  // For AES-256-ECB, we need exactly 32 bytes
+  // The key string is 32 characters, so it's already 32 bytes as UTF-8
+  const keyBuffer = Buffer.from(keyString, 'utf8');
+  
+  if (keyBuffer.length === 32) {
+    return keyBuffer;
+  } else if (keyBuffer.length > 32) {
+    return keyBuffer.slice(0, 32);
+  } else {
+    // Pad with zeros if shorter (shouldn't happen with 32-char key)
     const paddedKey = Buffer.alloc(32);
     keyBuffer.copy(paddedKey, 0);
-    // Fill remaining with zeros or repeat the key
-    keyBuffer.copy(paddedKey, 16);
     return paddedKey;
-  } else {
-    // Fallback: treat as UTF-8 and pad/truncate to 32 bytes
-    const keyBuffer = Buffer.from(keyString, 'utf8');
-    if (keyBuffer.length >= 32) {
-      return keyBuffer.slice(0, 32);
-    } else {
-      const paddedKey = Buffer.alloc(32);
-      keyBuffer.copy(paddedKey);
-      return paddedKey;
-    }
   }
 }
 
@@ -41,11 +34,16 @@ export function encrypt(payload) {
   try {
     const text = typeof payload === 'string' ? payload : JSON.stringify(payload);
     const key = createKey(AES_KEY);
+    
+    // AES-256-ECB doesn't use IV, so pass null
     const cipher = crypto.createCipheriv('aes-256-ecb', key, null);
+    
     let encrypted = cipher.update(text, 'utf8', 'base64');
     encrypted += cipher.final('base64');
+    
     return encrypted;
   } catch (error) {
+    console.error("Encryption error:", error);
     throw error;
   }
 }
@@ -61,6 +59,7 @@ app.post("/launch_game", async (req, res) => {
     });
   }
 
+  // Use milliseconds timestamp like PHP: round(microtime(true) * 1000)
   const timestamp = Math.round(Date.now());
 
   // Create payload exactly like PHP code
@@ -74,9 +73,11 @@ app.post("/launch_game", async (req, res) => {
 
   console.log("Request data:", requestData);
 
-  // Encrypt the payload using the secret key
+  // Encrypt the payload using the secret key (matching PHP)
   const message = JSON.stringify(requestData);
   const encryptedPayload = encrypt(message);
+
+  console.log("Encrypted payload:", encryptedPayload);
 
   // Build URL with parameters (like PHP code)
   const gameUrl = `${SERVER_URL}/launch_game?` + 
@@ -100,11 +101,11 @@ app.post("/launch_game", async (req, res) => {
       gameUrl: gameUrl
     });
   } catch (error) {
-    console.error("API Error:", error.message);
+    console.error("API Error:", error.response?.data || error.message);
     res.status(500).json({
       success: false,
       message: "Failed to launch game",
-      error: error.message
+      error: error.response?.data || error.message
     });
   }
 });
