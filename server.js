@@ -63,7 +63,7 @@ export function encrypt(payload) {
 
 
 
-app.post("/launch_game", (req, res) => {
+app.post("/launch_game", async (req, res) => {
 
      const { userName, game_uid, credit_amount } = req.body;
      const SERVER_URL = "https://bulkapi.in"; 
@@ -129,6 +129,16 @@ app.post("/launch_game", (req, res) => {
           `&payload=${encodeURIComponent(encryptedPayload)}`;
     
         console.log(" Generated game URL:", gameUrl);
+
+
+            // 🔧 Call the casino API
+    const response = await axios.get(gameUrl);
+
+    // Return the casino API response to frontend
+    res.json({
+      success: true,
+      data: response.data
+    });
    
 });
 app.get('/api/test', (req, res) => {
