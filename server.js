@@ -9,30 +9,20 @@ app.use(cors());
 app.use(express.json());
 
 // Use the SAME credentials as PHP code in vish/index.php
-const API_TOKEN = "ceb57a3c-4685-4d32-9379-c2424f";  // Match PHP api_token
-const AES_KEY = "60fe91cdffa48eeca70403b3656446";    // Match PHP api_secret
+const API_TOKEN = "ceb57a3c-4685-4d32-9379-c2424f";  
+const AES_KEY = "60fe91cdffa48eeca70403b3656446";    
 
 function createKey(keyString) {
-  // PHP's openssl_encrypt automatically pads keys to the required length
-  // For AES-256-ECB, we need exactly 32 bytes
-  // Convert key string to buffer (UTF-8 encoding)
   const keyBuffer = Buffer.from(keyString, 'utf8');
-  
-  // Create a 32-byte buffer (initialized with zeros)
   const paddedKey = Buffer.alloc(32, 0);
-  
-  // Copy the key bytes into the padded buffer
-  // If key is longer than 32 bytes, only copy first 32 bytes
-  // If key is shorter, it will be padded with zeros (null bytes)
   const bytesToCopy = Math.min(keyBuffer.length, 32);
   keyBuffer.copy(paddedKey, 0, 0, bytesToCopy);
-  
   return paddedKey;
 }
 
 export function encrypt(payload) {
   try {
-    // Match PHP's JSON_UNESCAPED_SLASHES behavior
+
     let text = typeof payload === 'string' ? payload : JSON.stringify(payload);
     // Remove escaped forward slashes to match PHP
     text = text.replace(/\\\//g, '/');
