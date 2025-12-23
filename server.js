@@ -8,14 +8,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Use the same keys as PHP code in vish/index.php
+// Use the key that matches your API_TOKEN
+// If API_TOKEN is "ceb57a3c-4685-4d32-9379-c2424f", use the secret key for that account
 const API_TOKEN = "ceb57a3c-4685-4d32-9379-c2424f";
-const AES_KEY = "ddef668618ad596a200c7da75e06de"; // Match PHP api_secret
+// Try the original key first - it might be correct for this API token
+const AES_KEY = "60fe910dffa48eeca70403b3656446"; 
 
 function createKey(keyString) {
   // PHP's openssl_encrypt treats the key as a raw UTF-8 string
-  // For AES-256-ECB, we need exactly 32 bytes
-  // The key string is 32 characters, so it's already 32 bytes as UTF-8
+  // Convert to buffer and ensure it's exactly 32 bytes for AES-256
   const keyBuffer = Buffer.from(keyString, 'utf8');
   
   if (keyBuffer.length === 32) {
@@ -23,8 +24,8 @@ function createKey(keyString) {
   } else if (keyBuffer.length > 32) {
     return keyBuffer.slice(0, 32);
   } else {
-    // Pad with zeros if shorter (shouldn't happen with 32-char key)
-    const paddedKey = Buffer.alloc(32);
+    // Pad with null bytes if shorter (PHP does this)
+    const paddedKey = Buffer.alloc(32, 0);
     keyBuffer.copy(paddedKey, 0);
     return paddedKey;
   }
@@ -32,12 +33,18 @@ function createKey(keyString) {
 
 export function encrypt(payload) {
   try {
-    const text = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    // Match PHP's JSON_UNESCAPED_SLASHES - remove escaped forward slashes
+    let text = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    text = text.replace(/\\\//g, '/');
+    
     const key = createKey(AES_KEY);
     
-    // AES-256-ECB doesn't use IV, so pass null
+    // AES-256-ECB - no IV needed (pass null)
+    // PHP: openssl_encrypt($plaintext, 'aes-256-ecb', $aesKey, OPENSSL_RAW_DATA, '')
+    // OPENSSL_RAW_DATA means it returns raw binary, then base64_encode is applied
     const cipher = crypto.createCipheriv('aes-256-ecb', key, null);
     
+    // Update with utf8 input, base64 output (matches PHP's base64_encode of raw data)
     let encrypted = cipher.update(text, 'utf8', 'base64');
     encrypted += cipher.final('base64');
     
@@ -48,9 +55,23 @@ export function encrypt(payload) {
   }
 }
 
+// Helper function to decrypt and verify (for testing)
+export function decrypt(encryptedBase64) {
+  try {
+    const key = createKey(AES_KEY);
+    const decipher = crypto.createDecipheriv('aes-256-ecb', key, null);
+    let decrypted = decipher.update(encryptedBase64, 'base64', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (error) {
+    console.error("Decryption error:", error);
+    throw error;
+  }
+}
+const SERVER_URL = "https://bulkapi.in"; 
 app.post("/launch_game", async (req, res) => {
   const { userName, game_uid, credit_amount } = req.body;
-  const SERVER_URL = "https://bulkapi.in"; 
+  
   
   if (!userName || !game_uid || !credit_amount) {
     return res.status(400).json({ 
@@ -59,7 +80,7 @@ app.post("/launch_game", async (req, res) => {
     });
   }
 
-  // Use milliseconds timestamp like PHP: round(microtime(true) * 1000)
+  // Match PHP: round(microtime(true) * 1000)
   const timestamp = Math.round(Date.now());
 
   // Create payload exactly like PHP code
@@ -71,16 +92,35 @@ app.post("/launch_game", async (req, res) => {
     timestamp: timestamp
   };
 
-  console.log("Request data:", requestData);
-
-  // Encrypt the payload using the secret key (matching PHP)
+  // Match PHP: json_encode($requestData, JSON_UNESCAPED_SLASHES)
   const message = JSON.stringify(requestData);
+  console.log("Plain JSON:", message);
+  
   const encryptedPayload = encrypt(message);
-
   console.log("Encrypted payload:", encryptedPayload);
 
+  // Verify encryption by decrypting (for debugging)
+  try {
+    const decrypted = decrypt(encryptedPayload);
+    console.log("Decrypted (verification):", decrypted);
+    const parsed = JSON.parse(decrypted);
+    console.log("Parsed JSON (verification):", parsed);
+  } catch (e) {
+    console.error("Self-decryption test failed:", e.message);
+  }
+
   // Build URL with parameters (like PHP code)
-  const gameUrl = `${SERVER_URL}/launch_game?` + 
+  // const gameUrl = ${SERVER_URL}/launch_game? + 
+  //   user_id=${encodeURIComponent(userName)} +
+  //   &wallet_amount=${encodeURIComponent(credit_amount)} +
+  //   &game_uid=${encodeURIComponent(game_uid)} +
+  //   &token=${encodeURIComponent(API_TOKEN)} +
+  //   &timestamp=${encodeURIComponent(timestamp)} +
+  //   &payload=${encodeURIComponent(encryptedPayload)};
+
+
+
+    const gameUrl = `${SERVER_URL}/launch_game?` + 
     `user_id=${encodeURIComponent(userName)}` +
     `&wallet_amount=${encodeURIComponent(credit_amount)}` +
     `&game_uid=${encodeURIComponent(game_uid)}` +
@@ -102,7 +142,9 @@ app.post("/launch_game", async (req, res) => {
     });
   } catch (error) {
     console.error("API Error:", error.response?.data || error.message);
-    res.status(500).json({
+    console.error("Response status:", error.response?.status);
+    console.error("Response headers:", error.response?.headers);
+    res.status(error.response?.status || 500).json({
       success: false,
       message: "Failed to launch game",
       error: error.response?.data || error.message
