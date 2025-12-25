@@ -22,7 +22,7 @@ function createKey(keyString) {
 
 export function encrypt(payload) {
   try {
-
+    // Match PHP's JSON_UNESCAPED_SLASHES behavior
     let text = typeof payload === 'string' ? payload : JSON.stringify(payload);
     // Remove escaped forward slashes to match PHP
     text = text.replace(/\\\//g, '/');
@@ -137,6 +137,47 @@ app.post("/launch_game", async (req, res) => {
       error: error.response?.data || error.message
     });
   }
+});
+
+app.post("/api/result", (req, res) => {
+  console.log("🎮 GAME CALLBACK RECEIVED");
+  console.log("Headers:", req.headers);
+  console.log("Body:", req.body);
+
+  // Destructure if you want cleaner logs
+  const {
+    mobile,
+    bet_amount,
+    win_amount,
+    game_uid,
+    game_round,
+    token,
+    wallet_before,
+    wallet_after,
+    change,
+    currency_code,
+    timestamp,
+  } = req.body;
+
+  console.log("Parsed Data:");
+  console.table({
+    mobile,
+    bet_amount,
+    win_amount,
+    game_uid,
+    game_round,
+    token,
+    wallet_before,
+    wallet_after,
+    change,
+    currency_code,
+    timestamp,
+  });
+
+  return res.json({
+    status: "success",
+    message: "Callback received",
+  });
 });
 
 app.get('/api/test', (req, res) => {
