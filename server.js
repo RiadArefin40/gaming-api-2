@@ -139,7 +139,7 @@ app.post("/launch_game", async (req, res) => {
   }
 });
 
-app.post("/api/result", (req, res) => {
+app.post("/result", (req, res) => {
   console.log("🎮 GAME CALLBACK RECEIVED");
   console.log("Headers:", req.headers);
   console.log("Body:", req.body);
