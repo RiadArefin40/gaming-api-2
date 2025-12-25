@@ -4,9 +4,13 @@ import cors from 'cors';
 import crypto from "crypto";
 
 const app = express();
-
+import bodyParser from "body-parser";
 app.use(cors());
 app.use(express.json());
+
+
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
 // Use the SAME credentials as PHP code in vish/index.php
 const API_TOKEN = "ceb57a3c-4685-4d32-9379-c2424f";  
@@ -144,7 +148,12 @@ app.post("/result", (req, res) => {
   console.log("Headers:", req.headers);
   console.log("Body:", req.body);
 
-  // Destructure if you want cleaner logs
+  if (!req.body || Object.keys(req.body).length === 0) {
+    return res.status(400).json({
+      error: "Empty body — callback not parsed",
+    });
+  }
+
   const {
     mobile,
     bet_amount,
@@ -159,7 +168,6 @@ app.post("/result", (req, res) => {
     timestamp,
   } = req.body;
 
-  console.log("Parsed Data:");
   console.table({
     mobile,
     bet_amount,
